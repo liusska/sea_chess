@@ -166,6 +166,32 @@ def check_for_winner(player, board):
     return False
 
 
+def maximizing_move(board, empty_fields, player):
+    best_score = -sys.maxsize
+    for field in empty_fields:
+        row = field[0]
+        col = field[1]
+        board[row][col] = player
+        score = minimax(board, False)
+        board[row][col] = EMPTY_FIELD
+        if score > best_score:
+            best_score = score
+    return best_score
+
+
+def minimizing_move(board, empty_fields, player):
+    best_score = sys.maxsize
+    for field in empty_fields:
+        row = field[0]
+        col = field[1]
+        board[row][col] = player
+        score = minimax(board, True)
+        board[row][col] = EMPTY_FIELD
+        if score < best_score:
+            best_score = score
+    return best_score
+
+
 def minimax(board, is_maximizing):
     """
     Search for the best score until reach one of the terminal states.
@@ -183,28 +209,10 @@ def minimax(board, is_maximizing):
     empty_fields_list = get_current_empty_fields(board)
 
     if is_maximizing:
-        best_score = -sys.maxsize
-        for field in empty_fields_list:
-            row = field[0]
-            col = field[1]
-            board[row][col] = PLAYER_AI
-            score = minimax(board, False)
-            board[row][col] = EMPTY_FIELD
-            if score > best_score:
-                best_score = score
-        return best_score
+        return maximizing_move(board, empty_fields_list, PLAYER_AI)
 
     else:
-        best_score = sys.maxsize
-        for field in empty_fields_list:
-            row = field[0]
-            col = field[1]
-            board[row][col] = PLAYER_X
-            score = minimax(board, True)
-            board[row][col] = EMPTY_FIELD
-            if score < best_score:
-                best_score = score
-        return best_score
+        return minimizing_move(board, empty_fields_list, PLAYER_X)
 
 
 def find_best_ai_move(board, empty_fields_coordinates):
