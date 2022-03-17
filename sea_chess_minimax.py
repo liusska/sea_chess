@@ -166,11 +166,10 @@ def check_for_winner(player, board):
     return False
 
 
-def maximizing_move(board, empty_fields, player):
+def maximizing_move(board, player, empty_fields):
     best_score = -sys.maxsize
     for field in empty_fields:
-        row = field[0]
-        col = field[1]
+        row, col = field
         board[row][col] = player
         score = minimax(board, False)
         board[row][col] = EMPTY_FIELD
@@ -179,11 +178,10 @@ def maximizing_move(board, empty_fields, player):
     return best_score
 
 
-def minimizing_move(board, empty_fields, player):
+def minimizing_move(board, player, empty_fields):
     best_score = sys.maxsize
     for field in empty_fields:
-        row = field[0]
-        col = field[1]
+        row, col = field
         board[row][col] = player
         score = minimax(board, True)
         board[row][col] = EMPTY_FIELD
@@ -192,6 +190,18 @@ def minimizing_move(board, empty_fields, player):
     return best_score
 
 
+def memoize(func):
+    memo = {}
+
+    def wrapper(board, player):
+        board_as_str = str(board)
+        if (board_as_str, player) not in memo:
+            memo[(board_as_str, player)] = func(board, player)
+        return memo[board_as_str, player]
+    return wrapper
+
+
+@memoize
 def minimax(board, is_maximizing):
     """
     Search for the best score until reach one of the terminal states.
@@ -207,12 +217,12 @@ def minimax(board, is_maximizing):
         return 0
 
     empty_fields_list = get_current_empty_fields(board)
-
+    current_board = copy.deepcopy(board)
     if is_maximizing:
-        return maximizing_move(board, empty_fields_list, PLAYER_AI)
+        return maximizing_move(current_board, PLAYER_AI, empty_fields_list)
 
     else:
-        return minimizing_move(board, empty_fields_list, PLAYER_X)
+        return minimizing_move(current_board, PLAYER_X, empty_fields_list)
 
 
 def find_best_ai_move(board, empty_fields_coordinates):
@@ -222,8 +232,7 @@ def find_best_ai_move(board, empty_fields_coordinates):
     best_score = -sys.maxsize
     best_move = None
     for field in empty_fields_coordinates:
-        row = field[0]
-        col = field[1]
+        row, col = field
         board[row][col] = PLAYER_AI
         score = minimax(board, False)
         board[row][col] = EMPTY_FIELD
