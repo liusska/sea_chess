@@ -8,6 +8,10 @@ PLAYER_AI = 'O'
 BOARD_SIZE = 3
 
 
+def board_to_hash(board):
+    return hash(tuple(tuple(row) for row in board))
+
+
 def generate_board(size=BOARD_SIZE):
     """
     Generate game board with BOARD_SIZE x BOARD_SIZE dimensions
@@ -44,14 +48,11 @@ def check_is_free_field(r, c, data):
     """
     Check if the chosen field is not already filled.
     """
-    try:
-        if not data[r][c] == '_':
-            print(f'The field with coordinates ({r}, {c}) is not free!')
-            return False
-        return True
-    except IndexError:
-        print('Please, enter 2 numbers, seperated by space in range(0, 2)')
-        return
+
+    if not data[r][c] == '_':
+        print(f'The field with coordinates ({r}, {c}) is not free!')
+        return False
+    return True
 
 
 def check_sequence(seq):
@@ -59,11 +60,8 @@ def check_sequence(seq):
     check if the given sequence contains only equal elements
     different from EMPTY_FIELD
     """
-    if seq[0] == EMPTY_FIELD:
-        return EMPTY_FIELD
-    if all([seq[0] == elem for elem in seq[1:]]):
+    if seq[0] != EMPTY_FIELD and all([seq[0] == elem for elem in seq[1:]]):
         return seq[0]
-
     return EMPTY_FIELD
 
 
@@ -158,55 +156,57 @@ def check_for_winner(player, board):
     """
     Check if there is a win.
     """
-    if check_rows(board) == player or \
-            check_columns(board) == player or \
-            check_primary_diagonal(board) == player or \
-            check_secondary_diagonal(board) == player:
-        return True
-    return False
+    return (check_rows(board) == player
+            or check_columns(board) == player
+            or check_primary_diagonal(board) == player
+            or check_secondary_diagonal(board) == player)
 
 
-def maximizing_move(board, player, empty_fields):
+def change_player(current_player: bool):
+    """
+    Change the current player
+    """
+    return not current_player
+
+
+def pick_player(current_player: bool):
+    """
+    Return current player sign
+    """
+    return PLAYER_X if current_player else PLAYER_AI
+
+
+def make_comparison(operator, maxsize, score):
+    """
+    Make comparison based on operator
+    """
+    return eval(f'{score}{operator}{maxsize}')
+
+
+def min_max_moves(board, player, empty_fields):
     best_score = -sys.maxsize
+    operator = '>'
+    if player:
+        best_score = sys.maxsize
+        operator = '<'
     for field in empty_fields:
         row, col = field
-        board[row][col] = player
-        score = minimax(board, False)
+        board[row][col] = pick_player(player)
+        score = minimax(board, change_player(player))
         board[row][col] = EMPTY_FIELD
-        if score > best_score:
+        if make_comparison(operator, best_score, score):
             best_score = score
     return best_score
 
 
-def minimizing_move(board, player, empty_fields):
-    best_score = sys.maxsize
-    for field in empty_fields:
-        row, col = field
-        board[row][col] = player
-        score = minimax(board, True)
-        board[row][col] = EMPTY_FIELD
-        if score < best_score:
-            best_score = score
-    return best_score
-
-
-def memoize(func):
-    memo = {}
-
-    def wrapper(board, player):
-        board_as_str = str(board)
-        if (board_as_str, player) not in memo:
-            memo[(board_as_str, player)] = func(board, player)
-        return memo[board_as_str, player]
-    return wrapper
-
-
-@memoize
-def minimax(board, is_maximizing):
+def minimax(board, player, memo={}):
     """
     Search for the best score until reach one of the terminal states.
-
     """
+    memo_score = memo.get(board_to_hash(board), None)
+    if memo_score is not None:
+        return memo_score
+
     if check_for_winner(PLAYER_X, board):
         return -1
 
@@ -218,11 +218,9 @@ def minimax(board, is_maximizing):
 
     empty_fields_list = get_current_empty_fields(board)
     current_board = copy.deepcopy(board)
-    if is_maximizing:
-        return maximizing_move(current_board, PLAYER_AI, empty_fields_list)
-
-    else:
-        return minimizing_move(current_board, PLAYER_X, empty_fields_list)
+    s = min_max_moves(current_board, player, empty_fields_list)
+    memo[board_to_hash(current_board)] = s
+    return s
 
 
 def find_best_ai_move(board, empty_fields_coordinates):
@@ -234,7 +232,7 @@ def find_best_ai_move(board, empty_fields_coordinates):
     for field in empty_fields_coordinates:
         row, col = field
         board[row][col] = PLAYER_AI
-        score = minimax(board, False)
+        score = minimax(board, True)
         board[row][col] = EMPTY_FIELD
         if score > best_score:
             best_score = score
@@ -251,33 +249,34 @@ def main():
 
     game_board = generate_board()
     view_board_state(game_board)
+    coordinates = None
+    player = True
 
     while True:
-        print('Enter your move in order row col:')
-        coordinates = is_valid_move()
-
-        while not check_is_free_field(coordinates[0], coordinates[1], game_board):
-            print('Enter your move again:')
+        if player:
+            print('Enter your move in order row col:')
             coordinates = is_valid_move()
 
-        make_move(coordinates, PLAYER_X, game_board)
+            while not check_is_free_field(coordinates[0], coordinates[1], game_board):
+                print('Enter your move again:')
+                coordinates = is_valid_move()
+        else:
+            if get_current_empty_fields(game_board):
+                coordinates = find_best_ai_move(game_board, get_current_empty_fields(game_board))
+
+        make_move(coordinates, pick_player(player), game_board)
         view_board_state(game_board)
 
-        if check_for_winner(PLAYER_X, game_board):
-            print(f'*** The WINNER is PLAYER ***')
+        if check_for_winner(pick_player(player), game_board):
+            player_name = 'PLAYER' if player else 'AI'
+            print(f'*** The WINNER is {player_name} ***')
             break
-
-        if get_current_empty_fields(game_board):
-            ai_coordinates = find_best_ai_move(game_board, get_current_empty_fields(game_board))
-            make_move(ai_coordinates, PLAYER_AI, game_board)
-            view_board_state(game_board)
-            if check_for_winner(PLAYER_AI, game_board):
-                print(f'*** The WINNER is AI ***')
-                break
 
         if not get_current_empty_fields(game_board):
             print(f'Game over! We don\'t have a winner!')
             break
+
+        player = change_player(player)
 
 
 if __name__ == '__main__':
