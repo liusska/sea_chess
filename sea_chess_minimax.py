@@ -1,6 +1,7 @@
 import copy
 import random
 import sys
+import operator
 
 EMPTY_FIELD = '_'
 PLAYER_X = 'X'
@@ -174,27 +175,17 @@ def pick_player(current_player: bool):
     Return current player sign
     """
     return PLAYER_X if current_player else PLAYER_AI
-
-
-def make_comparison(operator, maxsize, score):
-    """
-    Make comparison based on operator
-    """
-    return eval(f'{score}{operator}{maxsize}')
-
+  
 
 def min_max_moves(board, player, empty_fields):
-    best_score = -sys.maxsize
-    operator = '>'
-    if player:
-        best_score = sys.maxsize
-        operator = '<'
+    best_score = sys.maxsize if player else -sys.maxsize
+    comparator_operator = operator.gt if player else operator.lt
     for field in empty_fields:
         row, col = field
         board[row][col] = pick_player(player)
         score = minimax(board, change_player(player))
         board[row][col] = EMPTY_FIELD
-        if make_comparison(operator, best_score, score):
+        if comparator_operator(best_score, score):
             best_score = score
     return best_score
 
